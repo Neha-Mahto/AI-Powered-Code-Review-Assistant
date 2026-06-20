@@ -1,6 +1,6 @@
 # 🤖 CodeReview AI
 
-**FAANG-level automated code review combining AST static analysis with a free LLM (Llama 3.3 70B via Groq).**
+**Automated code review combining AST static analysis with a free LLM (Llama 3.3 70B via Groq).**
 
 CodeReview AI catches security vulnerabilities, performance issues, and style problems in your code — then layers an LLM-powered review on top for deeper architectural and logic feedback. Use it as a web app, a CLI tool, or a GitHub Actions bot that comments on your PRs automatically. **No paid API required** — runs entirely on Groq's free tier.
 
