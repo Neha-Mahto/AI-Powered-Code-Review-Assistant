@@ -175,7 +175,10 @@ class TestMaintainabilityChecks:
     def test_detects_missing_docstring(self, analyzer):
         code = '''
 def calculate_total(items):
-    return sum(items)
+    total = 0
+    for item in items:
+        total += item
+    return total
 '''
         issues = analyzer.analyze(code)
         assert any(i.rule_id == "MAINT001" for i in issues)
@@ -226,6 +229,37 @@ def add(a: int, b: int) -> int:
         issues = analyzer.analyze(code)
         assert not any(i.rule_id == "STYLE001" for i in issues)
 
+    def test_no_false_positive_with_partial_type_hints(self, analyzer):
+        """A mostly-typed function with one missed annotation should NOT be flagged —
+        only functions with zero type hints anywhere are worth flagging."""
+        code = '''
+def add(a: int, b) -> int:
+    """Add two numbers."""
+    return a + b
+'''
+        issues = analyzer.analyze(code)
+        assert not any(i.rule_id == "STYLE001" for i in issues)
+
+    def test_magic_number_only_flagged_in_comparisons(self, analyzer):
+        code = '''
+def is_adult(age: int) -> bool:
+    """Check if age qualifies as adult."""
+    return age >= 18
+'''
+        issues = analyzer.analyze(code)
+        assert any(i.rule_id == "STYLE002" for i in issues)
+
+    def test_no_false_positive_magic_number_on_indices(self, analyzer):
+        """Plain numeric literals used as list indices, slice bounds, or loop ranges
+        are NOT magic numbers — only comparison thresholds should be flagged."""
+        code = '''
+def first_three(items: list) -> list:
+    """Return the first three items."""
+    return items[0:3]
+'''
+        issues = analyzer.analyze(code)
+        assert not any(i.rule_id == "STYLE002" for i in issues)
+
 
 class TestEdgeCases:
 
@@ -261,6 +295,31 @@ def f(a, b, c, d, e, f, g):
         assert "counts" in summary
         assert "issues" in summary
         assert summary["total"] == len(issues)
+
+    def test_clean_well_typed_code_produces_minimal_noise(self, analyzer):
+        """Genuinely clean, fully-typed, documented code should produce at most
+        a couple of trivial findings — not a long list of style nitpicks."""
+        code = '''
+import os
+
+
+def get_user_count(database_path: str) -> int:
+    """Return the number of users in the database.
+
+    Args:
+        database_path: Path to the SQLite database file.
+
+    Returns:
+        The total number of user records.
+    """
+    if not os.path.exists(database_path):
+        raise FileNotFoundError(f"No database at {database_path}")
+    with open(database_path, "rb") as f:
+        return len(f.read())
+'''
+        issues = analyzer.analyze(code)
+        assert len(issues) <= 2
+        assert not any(i.severity == "critical" for i in issues)
 
 
 if __name__ == "__main__":
