@@ -408,6 +408,9 @@ class ASTAnalyzer:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 if node.name.startswith("_"):
                     continue
+                # Skip trivial one-line/two-line functions — docstrings add little value there
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and len(node.body) <= 1:
+                    continue
                 has_doc = (
                     node.body
                     and isinstance(node.body[0], ast.Expr)
@@ -501,27 +504,26 @@ class ASTAnalyzer:
     # ─── Code Style ──────────────────────────────────────────────────────────
 
     def _check_missing_type_hints(self, tree: ast.AST) -> List[ASTIssue]:
+        """Only flags functions with ZERO type hints anywhere — a function that's
+        mostly typed with one missed parameter isn't worth flagging; that's noise."""
         issues = []
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if node.name.startswith("_"):
                     continue
                 real_args = [a for a in node.args.args if a.arg not in ("self", "cls")]
-                missing = [a.arg for a in real_args if a.annotation is None]
-                missing_return = node.returns is None
-
-                if missing or missing_return:
-                    parts = [f"param '{a}'" for a in missing[:3]]
-                    if missing_return:
-                        parts.append("return type")
+                if not real_args and node.returns is not None:
+                    continue
+                any_annotated = any(a.annotation is not None for a in real_args) or node.returns is not None
+                if real_args and not any_annotated:
                     issues.append(ASTIssue(
                         line=node.lineno, col=node.col_offset,
                         severity="suggestion", category="code_style",
-                        title=f"Missing type hints in '{node.name}'",
+                        title=f"No type hints in '{node.name}'",
                         description=(
-                            f"Missing annotations for: {', '.join(parts)}. "
+                            f"'{node.name}' has no type annotations at all. "
                             "Type hints enable static analysis (mypy/pyright), improve IDE support, "
-                            "and are required at most FAANG companies."
+                            "and are expected at most companies for public functions."
                         ),
                         fix=(
                             "  from typing import Optional, List\n\n"
@@ -533,29 +535,35 @@ class ASTAnalyzer:
         return issues
 
     def _check_magic_numbers(self, tree: ast.AST) -> List[ASTIssue]:
+        """Only flags numbers used as comparison thresholds (the classic 'magic number'
+        smell), not every numeric literal — flagging array indices, loop bounds, etc.
+        produces noise that doesn't reflect real code quality."""
         issues = []
         seen_lines: set = set()
-        ALLOWED = {0, 1, -1, 2, 10, 100}
+        ALLOWED = {0, 1, -1, 2, 10, 100, 1000}
         for node in ast.walk(tree):
-            if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
-                if node.value not in ALLOWED and node.lineno not in seen_lines:
-                    # skip: assignments to constants (ALL_CAPS names)
-                    seen_lines.add(node.lineno)
-                    issues.append(ASTIssue(
-                        line=node.lineno, col=node.col_offset,
-                        severity="suggestion", category="code_style",
-                        title=f"Magic number: {node.value}",
-                        description=(
-                            f"The literal {node.value} has no contextual meaning. "
-                            "Magic numbers make code hard to understand and change."
-                        ),
-                        fix=(
-                            "Define a named constant:\n"
-                            f"  MAX_RETRIES = {node.value}\n"
-                            f"  TIMEOUT_SECONDS = {node.value}"
-                        ),
-                        rule_id="STYLE002"
-                    ))
+            if isinstance(node, ast.Compare):
+                for comparator in node.comparators + [node.left]:
+                    if (isinstance(comparator, ast.Constant)
+                            and isinstance(comparator.value, (int, float))
+                            and comparator.value not in ALLOWED
+                            and comparator.lineno not in seen_lines):
+                        seen_lines.add(comparator.lineno)
+                        issues.append(ASTIssue(
+                            line=comparator.lineno, col=comparator.col_offset,
+                            severity="suggestion", category="code_style",
+                            title=f"Magic number in comparison: {comparator.value}",
+                            description=(
+                                f"The threshold {comparator.value} has no contextual meaning at the call site. "
+                                "Magic numbers in comparisons make the intent and tuning unclear."
+                            ),
+                            fix=(
+                                "Define a named constant:\n"
+                                f"  MAX_RETRIES = {comparator.value}\n"
+                                f"  if attempts > MAX_RETRIES: ..."
+                            ),
+                            rule_id="STYLE002"
+                        ))
         return issues
 
     def summarize(self, issues: List[ASTIssue]) -> dict:
