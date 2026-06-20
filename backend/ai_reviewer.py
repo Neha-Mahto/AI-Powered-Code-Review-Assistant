@@ -10,14 +10,15 @@ base URL below if you want to point this at a different OpenAI-compatible
 provider later (e.g. Gemini's OpenAI-compatible endpoint).
 """
 
-import os
 import json
+import os
 import re
 from typing import List, Optional
+
 import httpx
 
-from backend.models import ReviewResponse, Issue, Categories
 from backend.ast_analyzer import ASTIssue
+from backend.models import Categories, Issue, ReviewResponse
 
 SYSTEM_PROMPT = """You are a senior staff engineer at a top tech company conducting a rigorous code review.
 
