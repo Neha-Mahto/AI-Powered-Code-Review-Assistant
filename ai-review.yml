@@ -1,0 +1,96 @@
+name: AI Code Review
+
+# Automatically reviews changed Python files on every PR using
+# the AST analyzer + Llama 3.3 (via Groq's free API). Fails the check if critical issues are found.
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "**.py"
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Get changed Python files
+        id: changed-files
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.base_ref }} HEAD -- '*.py' | tr '\n' ' ')
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+
+      - name: Run AI review on changed files
+        id: review
+        if: steps.changed-files.outputs.files != ''
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          mkdir -p review-output
+          EXIT_CODE=0
+          for file in ${{ steps.changed-files.outputs.files }}; do
+            echo "Reviewing $file..."
+            python cli/review.py "$file" --json > "review-output/$(basename $file).json" || EXIT_CODE=1
+            python cli/review.py "$file" --fail-on critical || EXIT_CODE=1
+          done
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Post review summary as PR comment
+        if: steps.changed-files.outputs.files != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'review-output';
+            let body = '## 🤖 AI Code Review\n\n';
+
+            if (fs.existsSync(path)) {
+              const files = fs.readdirSync(path);
+              for (const file of files) {
+                const data = JSON.parse(fs.readFileSync(`${path}/${file}`, 'utf8'));
+                const emoji = data.overall_score >= 80 ? '✅' : data.overall_score >= 60 ? '⚠️' : '❌';
+                body += `### ${emoji} \`${file.replace('.json','')}\` — ${data.overall_score}/100 (${data.grade})\n\n`;
+                body += `${data.summary}\n\n`;
+                const critical = data.issues.filter(i => i.severity === 'critical');
+                if (critical.length) {
+                  body += `**Critical issues:**\n`;
+                  for (const issue of critical) {
+                    body += `- **${issue.title}**${issue.line_hint ? ` (${issue.line_hint})` : ''}: ${issue.description}\n`;
+                  }
+                  body += '\n';
+                }
+                body += `> 💡 ${data.top_recommendation}\n\n---\n\n`;
+              }
+            } else {
+              body += 'No Python files changed.\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Fail if critical issues found
+        if: steps.review.outputs.exit_code == '1'
+        run: |
+          echo "Critical issues found — see PR comment for details."
+          exit 1
