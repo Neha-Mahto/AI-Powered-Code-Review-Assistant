@@ -2,8 +2,9 @@
 Pydantic models for the AI Code Review API.
 """
 
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
 
 
 class ReviewRequest(BaseModel):
