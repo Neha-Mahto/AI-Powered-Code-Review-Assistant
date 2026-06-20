@@ -7,8 +7,8 @@ before sending to the AI for deeper review.
 
 import ast
 import re
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import List
 
 
 @dataclass
