@@ -16,14 +16,13 @@ Exit codes:
 
 import argparse
 import asyncio
-import json
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from backend.ast_analyzer import ASTAnalyzer
 from backend.ai_reviewer import AIReviewer
+from backend.ast_analyzer import ASTAnalyzer
 
 EXT_TO_LANG = {
     ".py": "Python", ".js": "JavaScript", ".ts": "TypeScript",
@@ -64,7 +63,7 @@ def print_report(result, filename: str, ast_count: int):
         print(f"    {name:18s} {bar} {value}/100")
     print()
 
-    print(colorize(f"  Summary: ", "bold") + result.summary)
+    print(colorize("  Summary: ", "bold") + result.summary)
     print()
     print(colorize("  ⚡ Top priority: ", "bold") + result.top_recommendation)
     print()
