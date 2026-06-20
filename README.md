@@ -7,7 +7,7 @@ CodeReview AI catches security vulnerabilities, performance issues, and style pr
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://github.com/YOUR_USERNAME/ai-code-reviewer/actions/workflows/tests.yml/badge.svg)
+![Tests](https://github.com/Neha-Mahto/AI-Powered-Code-Review-Assistant/actions/workflows/tests.yml/badge.svg)
 
 ---
 
@@ -75,8 +75,8 @@ The AST analyzer runs first and is **free and instant** — it finds concrete, d
 ### Option A: Docker (recommended)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-code-reviewer.git
-cd ai-code-reviewer
+git clone https://github.com/Neha-Mahto/AI-Powered-Code-Review-Assistant.git
+cd AI-Powered-Code-Review-Assistant
 cp .env.example .env
 # Edit .env and paste your GROQ_API_KEY
 docker-compose up --build
@@ -87,8 +87,8 @@ Visit `http://localhost:8000`.
 ### Option B: Local Python
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-code-reviewer.git
-cd ai-code-reviewer
+git clone https://github.com/Neha-Mahto/AI-Powered-Code-Review-Assistant.git
+cd AI-Powered-Code-Review-Assistant
 pip install -r requirements.txt
 export GROQ_API_KEY=gsk_your-key-here
 uvicorn backend.main:app --reload
