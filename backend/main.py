@@ -3,18 +3,18 @@ AI Code Review API
 FastAPI backend combining AST static analysis + Llama 3.3 (via Groq) AI review
 """
 
-import os
 import json
-import httpx
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
+import os
 from typing import Optional
 
-from backend.ast_analyzer import ASTAnalyzer
+import httpx
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
 from backend.ai_reviewer import AIReviewer
+from backend.ast_analyzer import ASTAnalyzer
 from backend.models import ReviewRequest, ReviewResponse
 
 app = FastAPI(
