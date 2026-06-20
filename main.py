@@ -19,7 +19,7 @@ from backend.models import ReviewRequest, ReviewResponse
 
 app = FastAPI(
     title="AI Code Review API",
-    description="FAANG-level code review combining AST static analysis and Llama 3.3 (via Groq)",
+    description="Automated code review combining AST static analysis and Llama 3.3 (via Groq)",
     version="1.0.0"
 )
 
